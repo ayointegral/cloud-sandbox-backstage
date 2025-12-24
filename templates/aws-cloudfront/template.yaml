@@ -1,16 +1,16 @@
 apiVersion: scaffolder.backstage.io/v1beta3
 kind: Template
 metadata:
-  name: aws-eks-cluster
-  title: AWS EKS Cluster
-  description: Create an EKS Kubernetes cluster with managed node groups and cluster autoscaler
+  name: aws-cloudfront-distribution
+  title: AWS CloudFront Distribution
+  description: Create a CloudFront CDN distribution with Origin Access Control and caching configuration
   tags:
     - aws
-    - eks
-    - kubernetes
+    - cloudfront
+    - cdn
     - terraform
     - devops
-    - platform
+    - networking
   annotations:
     backstage.io/techdocs-ref: dir:.
 spec:
@@ -24,15 +24,15 @@ spec:
         - owner
       properties:
         name:
-          title: Cluster Name
+          title: Distribution Name
           type: string
-          description: Name of the EKS cluster
-          pattern: '^[a-z][a-z0-9-]*[a-z0-9]$'
+          description: Name identifier for the CloudFront distribution
+          pattern: '^[a-z0-9][a-z0-9-]*[a-z0-9]$'
           ui:autofocus: true
         description:
           title: Description
           type: string
-          description: Purpose of this cluster
+          description: Purpose of this CloudFront distribution
         owner:
           title: Owner
           type: string
@@ -42,13 +42,11 @@ spec:
             catalogFilter:
               kind: Group
 
-    - title: Cluster Configuration
+    - title: Distribution Configuration
       required:
         - environment
         - region
-        - kubernetesVersion
-        - vpcId
-        - privateSubnetIds
+        - origin_domain_name
       properties:
         environment:
           title: Environment
@@ -68,49 +66,49 @@ spec:
             - eu-central-1
             - ap-southeast-1
           default: us-east-1
-        kubernetesVersion:
-          title: Kubernetes Version
+          description: Region for the S3 origin bucket (CloudFront is global)
+        origin_domain_name:
+          title: Origin Domain Name
+          type: string
+          description: S3 bucket regional domain name or custom origin domain
+        price_class:
+          title: Price Class
           type: string
           enum:
-            - '1.31'
-            - '1.30'
-            - '1.29'
-          default: '1.31'
-        vpcId:
-          title: VPC ID
-          type: string
-          description: ID of the VPC where the cluster will be deployed (e.g., vpc-0123456789abcdef0)
-          pattern: '^vpc-[a-f0-9]+$'
-        privateSubnetIds:
-          title: Private Subnet IDs
-          type: array
-          description: List of private subnet IDs for the EKS cluster nodes
-          items:
-            type: string
-            pattern: '^subnet-[a-f0-9]+$'
-          minItems: 2
-          ui:help: Select at least 2 subnets in different availability zones
-        nodeInstanceType:
-          title: Node Instance Type
+            - PriceClass_100
+            - PriceClass_200
+            - PriceClass_All
+          default: PriceClass_100
+          description: CloudFront edge location price class
+        default_ttl:
+          title: Default TTL (seconds)
+          type: integer
+          default: 86400
+          description: Default cache TTL in seconds
+        viewer_protocol_policy:
+          title: Viewer Protocol Policy
           type: string
           enum:
-            - t3.medium
-            - t3.large
-            - m6i.large
-            - m6i.xlarge
-          default: t3.large
-        nodeDesiredSize:
-          title: Desired Node Count
-          type: integer
-          default: 2
-          minimum: 1
-          maximum: 10
-        nodeMaxSize:
-          title: Maximum Node Count
-          type: integer
-          default: 5
-          minimum: 1
-          maximum: 20
+            - redirect-to-https
+            - https-only
+            - allow-all
+          default: redirect-to-https
+        enable_compression:
+          title: Enable Compression
+          type: boolean
+          default: true
+          description: Enable automatic compression of content
+
+    - title: Custom Domain (Optional)
+      properties:
+        custom_domain:
+          title: Custom Domain
+          type: string
+          description: Custom domain name (e.g., cdn.example.com)
+        acm_certificate_arn:
+          title: ACM Certificate ARN
+          type: string
+          description: ARN of ACM certificate for custom domain (required if custom domain is set)
 
     - title: Repository Configuration
       required:
@@ -136,12 +134,13 @@ spec:
           owner: ${{ parameters.owner }}
           environment: ${{ parameters.environment }}
           region: ${{ parameters.region }}
-          kubernetesVersion: ${{ parameters.kubernetesVersion }}
-          vpcId: ${{ parameters.vpcId }}
-          privateSubnetIds: ${{ parameters.privateSubnetIds }}
-          nodeInstanceType: ${{ parameters.nodeInstanceType }}
-          nodeDesiredSize: ${{ parameters.nodeDesiredSize }}
-          nodeMaxSize: ${{ parameters.nodeMaxSize }}
+          origin_domain_name: ${{ parameters.origin_domain_name }}
+          price_class: ${{ parameters.price_class }}
+          default_ttl: ${{ parameters.default_ttl }}
+          viewer_protocol_policy: ${{ parameters.viewer_protocol_policy }}
+          enable_compression: ${{ parameters.enable_compression }}
+          custom_domain: ${{ parameters.custom_domain }}
+          acm_certificate_arn: ${{ parameters.acm_certificate_arn }}
 
     - id: publish
       name: Publish to GitHub
@@ -149,7 +148,7 @@ spec:
       input:
         allowedHosts: ['github.com']
         repoUrl: ${{ parameters.repoUrl }}
-        description: 'AWS EKS Cluster: ${{ parameters.name }}'
+        description: 'AWS CloudFront Distribution: ${{ parameters.name }}'
         repoVisibility: private
         defaultBranch: main
 

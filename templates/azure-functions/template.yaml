@@ -1,21 +1,20 @@
 apiVersion: scaffolder.backstage.io/v1beta3
 kind: Template
 metadata:
-  name: gcp-gke-cluster
-  title: GCP GKE Cluster
-  description: Create a GKE Kubernetes cluster with Autopilot or Standard mode, Workload Identity, and monitoring
+  name: azure-functions
+  title: Azure Functions
+  description: Create an Azure Functions App for serverless event-driven compute
   tags:
-    - gcp
-    - gke
-    - kubernetes
+    - azure
+    - functions
+    - serverless
+    - faas
     - terraform
-    - devops
-    - platform
   annotations:
     backstage.io/techdocs-ref: dir:.
 spec:
   owner: group:platform-team
-  type: infrastructure
+  type: service
 
   parameters:
     - title: Project Information
@@ -24,15 +23,15 @@ spec:
         - owner
       properties:
         name:
-          title: Cluster Name
+          title: Function App Name
           type: string
-          description: Name of the GKE cluster
+          description: Name of the Azure Function App
           pattern: '^[a-z][a-z0-9-]*[a-z0-9]$'
           ui:autofocus: true
         description:
           title: Description
           type: string
-          description: Purpose of this cluster
+          description: Purpose of this Function App
         owner:
           title: Owner
           type: string
@@ -42,13 +41,10 @@ spec:
             catalogFilter:
               kind: Group
 
-    - title: Cluster Configuration
+    - title: Environment Configuration
       required:
         - environment
-        - region
-        - gcpProject
-        - networkId
-        - subnetId
+        - location
       properties:
         environment:
           title: Environment
@@ -58,53 +54,66 @@ spec:
             - staging
             - production
           default: development
-        region:
-          title: GCP Region
+        location:
+          title: Azure Region
           type: string
           enum:
-            - us-central1
-            - us-east1
-            - us-west1
-            - europe-west1
-            - europe-west2
-            - asia-east1
-          default: us-central1
-        gcpProject:
-          title: GCP Project ID
-          type: string
-          description: The GCP project to deploy to
-        networkId:
-          title: VPC Network ID
-          type: string
-          description: VPC Network self_link or name for the GKE cluster
-        subnetId:
-          title: Subnet ID
-          type: string
-          description: Subnet self_link or name for the GKE cluster nodes
-        clusterMode:
-          title: Cluster Mode
+            - eastus2
+            - westus2
+            - westeurope
+            - eastasia
+            - centralus
+            - australiaeast
+          default: eastus2
+
+    - title: Runtime Configuration
+      required:
+        - runtimeStack
+        - runtimeVersion
+      properties:
+        runtimeStack:
+          title: Runtime Stack
           type: string
           enum:
-            - autopilot
-            - standard
-          default: autopilot
-          description: Autopilot for fully managed, Standard for custom node pools
-        machineType:
-          title: Machine Type (Standard mode only)
+            - dotnet
+            - node
+            - python
+            - java
+          default: node
+          description: Programming language runtime for your functions
+        runtimeVersion:
+          title: Runtime Version
+          type: string
+          description: Version of the runtime (e.g., 18 for Node.js, 3.11 for Python)
+          default: '18'
+
+    - title: Hosting Configuration
+      required:
+        - skuTier
+        - storageAccountTier
+      properties:
+        skuTier:
+          title: Hosting Plan
           type: string
           enum:
-            - e2-medium
-            - e2-standard-2
-            - e2-standard-4
-            - n2-standard-2
-            - n2-standard-4
-          default: e2-standard-2
-        nodeCount:
-          title: Initial Node Count (Standard mode only)
-          type: integer
-          default: 3
-          minimum: 1
-          maximum: 10
+            - Consumption
+            - Premium
+            - Dedicated
+          default: Consumption
+          description: Consumption for pay-per-use, Premium for VNET and pre-warmed instances, Dedicated for App Service plan
+        storageAccountTier:
+          title: Storage Account Tier
+          type: string
+          enum:
+            - Standard
+            - Premium
+          default: Standard
+          description: Storage tier for Function App state and triggers
+        enableAppInsights:
+          title: Enable Application Insights
+          type: boolean
+          default: true
+          description: Enable Application Insights for monitoring and telemetry
 
     - title: Repository Configuration
       required:
@@ -129,13 +138,12 @@ spec:
           description: ${{ parameters.description }}
           owner: ${{ parameters.owner }}
           environment: ${{ parameters.environment }}
-          region: ${{ parameters.region }}
-          gcpProject: ${{ parameters.gcpProject }}
-          networkId: ${{ parameters.networkId }}
-          subnetId: ${{ parameters.subnetId }}
-          clusterMode: ${{ parameters.clusterMode }}
-          machineType: ${{ parameters.machineType }}
-          nodeCount: ${{ parameters.nodeCount }}
+          location: ${{ parameters.location }}
+          runtimeStack: ${{ parameters.runtimeStack }}
+          runtimeVersion: ${{ parameters.runtimeVersion }}
+          skuTier: ${{ parameters.skuTier }}
+          storageAccountTier: ${{ parameters.storageAccountTier }}
+          enableAppInsights: ${{ parameters.enableAppInsights }}
 
     - id: publish
       name: Publish to GitHub
@@ -143,7 +151,7 @@ spec:
       input:
         allowedHosts: ['github.com']
         repoUrl: ${{ parameters.repoUrl }}
-        description: 'GCP GKE Cluster: ${{ parameters.name }}'
+        description: 'Azure Functions App: ${{ parameters.name }}'
         repoVisibility: private
         defaultBranch: main
 
