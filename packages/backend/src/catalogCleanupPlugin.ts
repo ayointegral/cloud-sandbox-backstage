@@ -7,6 +7,7 @@ import { Octokit } from '@octokit/rest';
 import { Entity } from '@backstage/catalog-model';
 import * as express from 'express';
 import * as crypto from 'crypto';
+import rateLimit from 'express-rate-limit';
 
 /**
  * =============================================================================
@@ -756,7 +757,14 @@ export default createBackendPlugin({
         });
 
         // GitHub webhook receiver
-        router.post('/webhook', express.json(), async (req, res) => {
+        const webhookRateLimiter = rateLimit({
+          windowMs: 15 * 60 * 1000, // 15 minutes
+          max: 100, // limit each IP to 100 requests per windowMs
+          standardHeaders: true,
+          legacyHeaders: false,
+        });
+
+        router.post('/webhook', webhookRateLimiter, express.json(), async (req, res) => {
           const event = req.headers['x-github-event'] as string;
           const signature = req.headers['x-hub-signature-256'] as string;
           const payload = JSON.stringify(req.body);
